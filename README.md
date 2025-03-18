@@ -12,7 +12,7 @@ The agent integrates with the OpenAI API and a weather API to provide real-time 
 
 ## Installation
 Clone the repository:
-  - ***git clone https://github.com/your-username/conversational-agent.git***
+  - ***git clone [https://github.com/your-username/conversational-agent.git](https://github.com/NMHelmy/Building-Conversational-Agents-with-Tool-Use-and-Reason-ing-Techniques.git)***
   - ***cd conversational-agent***
 Install the required dependencies:
  - ***pip install -r requirements.txt***

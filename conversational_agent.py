@@ -2,19 +2,27 @@ import os
 import json
 import requests
 import re
+import ast
 from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
-API_KEY = os.environ.get("API_KEY", os.getenv('OPTOGPT_API_KEY'))
-BASE_URL = os.environ.get("BASE_URL", os.getenv('BASE_URL'))
-LLM_MODEL = os.environ.get("LLM_MODEL", os.getenv('OPTOGPT_MODEL'))
-WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY")
+
+# Fetch environment variables
+API_KEY = os.getenv("API_KEY", os.getenv('OPTOGPT_API_KEY'))
+BASE_URL = os.getenv("BASE_URL", os.getenv('BASE_URL'))
+LLM_MODEL = os.getenv("LLM_MODEL", os.getenv('OPTOGPT_MODEL'))
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+
+# Validate required environment variables
+if not API_KEY or not BASE_URL or not LLM_MODEL or not WEATHER_API_KEY:
+    print("Error: Missing required environment variables.")
+    exit(1)
 
 # Initialize the OpenAI client with custom base URL
 client = OpenAI(
-    api_key=API_KEY, 
+    api_key=API_KEY,
     base_url=BASE_URL
 )
 
@@ -22,47 +30,55 @@ client = OpenAI(
 def get_current_weather(location):
     """Get the current weather for a location."""
     url = f"http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={location}&aqi=no"
-    response = requests.get(url)
-    data = response.json()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
+        data = response.json()
 
-    if "error" in data:
-        return f"Error: {data['error']['message']}"
-    
-    weather_info = data["current"]
-    return json.dumps({
-        "location": data["location"]["name"],
-        "temperature_c": weather_info["temp_c"],
-        "temperature_f": weather_info["temp_f"],
-        "condition": weather_info["condition"]["text"],
-        "humidity": weather_info["humidity"],
-        "wind_kph": weather_info["wind_kph"]
-    })
+        if "error" in data:
+            return f"Error: {data['error']['message']}"
+
+        weather_info = data["current"]
+        return json.dumps({
+            "location": data["location"]["name"],
+            "temperature_c": weather_info["temp_c"],
+            "temperature_f": weather_info["temp_f"],
+            "condition": weather_info["condition"]["text"],
+            "humidity": weather_info["humidity"],
+            "wind_kph": weather_info["wind_kph"]
+        })
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
 
 def get_weather_forecast(location, days=3):
     """Get a weather forecast for a location for a specified number of days."""
     url = f"http://api.weatherapi.com/v1/forecast.json?key={WEATHER_API_KEY}&q={location}&days={days}&aqi=no"
-    response = requests.get(url)
-    data = response.json()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
 
-    if "error" in data:
-        return f"Error: {data['error']['message']}"
-    
-    forecast_days = data["forecast"]["forecastday"]
-    forecast_data = []
+        if "error" in data:
+            return f"Error: {data['error']['message']}"
 
-    for day in forecast_days:
-        forecast_data.append({
-            "date": day["date"],
-            "max_temp_c": day["day"]["maxtemp_c"],
-            "min_temp_c": day["day"]["mintemp_c"],
-            "condition": day["day"]["condition"]["text"],
-            "chance_of_rain": day["day"]["daily_chance_of_rain"]
+        forecast_days = data["forecast"]["forecastday"]
+        forecast_data = []
+
+        for day in forecast_days:
+            forecast_data.append({
+                "date": day["date"],
+                "max_temp_c": day["day"]["maxtemp_c"],
+                "min_temp_c": day["day"]["mintemp_c"],
+                "condition": day["day"]["condition"]["text"],
+                "chance_of_rain": day["day"]["daily_chance_of_rain"]
+            })
+
+        return json.dumps({
+            "location": data["location"]["name"],
+            "forecast": forecast_data
         })
-    
-    return json.dumps({
-        "location": data["location"]["name"],
-        "forecast": forecast_data
-    })
+    except requests.exceptions.RequestException as e:
+        return f"Error: {str(e)}"
 
 weather_tools = [
     {
@@ -134,7 +150,7 @@ def process_messages(client, messages, tools=None, available_functions=None):
     })
 
     # Step 3: Check if the model wanted to use a tool
-    if response_message.tool_calls:
+    if response_message.tool_calls is not None:
         # Step 4: Extract tool invocation and make evaluation
         for tool_call in response_message.tool_calls:
             function_name = tool_call.function.name
@@ -152,15 +168,27 @@ def process_messages(client, messages, tools=None, available_functions=None):
                 "content": function_response,
             })
 
+        # Step 6: Send the updated messages back to the model to get the final response
+        final_response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=messages,
+        )
+        final_message = final_response.choices[0].message
+        messages.append({
+            "role": final_message.role,
+            "content": final_message.content,
+        })
+
     return messages
 
 # Enhancing with Chain of Thought Reasoning
 def calculator(expression):
     """Evaluate a mathematical expression and return the result as plain text."""
     try:
-        result = eval(expression)
+        # Use ast.literal_eval for safer evaluation
+        result = ast.literal_eval(expression)
         return f"The result of {expression} is {result}."
-    except Exception as e:
+    except (ValueError, SyntaxError) as e:
         return f"Error: {str(e)}"
 
 calculator_tool = {
@@ -198,6 +226,8 @@ For example, if someone asks about temperature differences between cities:
 2. Fetch the current temperature for the second city.
 3. Calculate the difference between the two temperatures.
 4. Show the step-by-step reasoning and provide the final answer.
+
+Always ensure you gather all necessary data before providing the final answer.
 """
 
 # Implementing ReAct Reasoning
@@ -281,7 +311,7 @@ def run_conversation(client, system_message="You are a helpful weather assistant
 
     while True:
         # Request user input and append to messages
-        user_input = input("You: ")
+        user_input = input("You: ").strip()
         if user_input.lower() in ["exit", "quit", "bye"]:
             print("\nWeather Assistant: Goodbye! Have a great day!")
             break
@@ -328,7 +358,7 @@ def run_conversation(client, system_message="You are a helpful weather assistant
 
 # Main function to run the agent
 if __name__ == "__main__":
-    choice = input("Choose an agent type (1: Basic, 2: Chain of Thought, 3: ReAct): ")
+    choice = input("\n1: Basic\n2: Chain of Thought\n3: ReAct\nChoose an agent type: ").strip()
     if choice == "1":
         system_message = "You are a helpful weather assistant."
         tools = weather_tools

@@ -1,10 +1,13 @@
 # Nour Helmy
+# 202202012
 
 import os
 import json
 import requests
 import re
 import ast
+import csv
+from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -358,21 +361,129 @@ def run_conversation(client, system_message="You are a helpful weather assistant
 
             print(f"\nWeather Assistant: {response}\n")
 
-# Main function to run the agent
-if __name__ == "__main__":
-    choice = input("\n1: Basic\n2: Chain of Thought\n3: ReAct\nChoose an agent type: ").strip()
-    if choice == "1":
-        system_message = "You are a helpful weather assistant."
-        tools = weather_tools
-    elif choice == "2":
-        system_message = cot_system_message
-        tools = cot_tools
-    elif choice == "3":
-        system_message = react_system_message
-        tools = react_tools
-    else:
-        print("Invalid choice. Defaulting to Basic agent.")
-        system_message = "You are a helpful weather assistant."
-        tools = weather_tools
+def run_all_agents(client, user_query):
+    """Run the user query with all three agent types and return their responses."""
+    # Basic Agent
+    basic_messages = [{"role": "system", "content": "You are a helpful weather assistant."}]
+    basic_messages.append({"role": "user", "content": user_query})
+    basic_response = process_messages(client, basic_messages, weather_tools, available_functions)
+    basic_output = basic_response[-1]["content"]
 
-    run_conversation(client, system_message)
+    # Chain of Thought Agent
+    cot_messages = [{"role": "system", "content": cot_system_message}]
+    cot_messages.append({"role": "user", "content": user_query})
+    cot_response = process_messages(client, cot_messages, cot_tools, available_functions)
+    cot_output = cot_response[-1]["content"]
+
+    # ReAct Agent
+    react_messages = [{"role": "system", "content": react_system_message}]
+    react_messages.append({"role": "user", "content": user_query})
+    react_response = process_messages(client, react_messages, react_tools, available_functions)
+    react_output = react_response[-1]["content"]
+
+    return {
+        "Basic": basic_output,
+        "Chain of Thought": cot_output,
+        "ReAct": react_output
+    }
+
+from tabulate import tabulate
+
+from tabulate import tabulate
+
+from tabulate import tabulate
+
+from tabulate import tabulate
+
+from tabulate import tabulate
+import textwrap
+
+def display_responses(responses):
+    """Display the responses from all three agents in a simple 3-column table with wrapped text."""
+    print("\n=== Comparative Evaluation ===")
+
+    # Define the maximum width for each column
+    column_width = 40
+
+    # Wrap the text for each response to fit within the column width
+    basic_wrapped = textwrap.fill(responses["Basic"], width=column_width)
+    cot_wrapped = textwrap.fill(responses["Chain of Thought"], width=column_width)
+    react_wrapped = textwrap.fill(responses["ReAct"], width=column_width)
+
+    # Prepare data for the table
+    table_data = [
+        ["Basic Agent", "Chain of Thought Agent", "ReAct Agent"],
+        [basic_wrapped, cot_wrapped, react_wrapped]
+    ]
+
+    # Print the table with vertical lines
+    print(tabulate(table_data, headers="firstrow", tablefmt="pretty"))
+
+def collect_ratings():
+    """Ask the user to rate each response on a scale of 1-5."""
+    ratings = {}
+    print("\nPlease rate each response on a scale of 1-5 (1 = Poor, 5 = Excellent):")
+    ratings["Basic"] = int(input("Rate the Basic Agent's response: "))
+    ratings["Chain of Thought"] = int(input("Rate the Chain of Thought Agent's response: "))
+    ratings["ReAct"] = int(input("Rate the ReAct Agent's response: "))
+    return ratings
+
+def save_to_csv(user_query, responses, ratings):
+    """Save the query, responses, and ratings to a CSV file."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    filename = "agent_evaluation.csv"
+
+    # Check if the file exists to write headers
+    file_exists = os.path.isfile(filename)
+
+    with open(filename, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(["Timestamp", "User Query", "Agent Type", "Response", "Rating"])
+
+        for agent_type, response in responses.items():
+            writer.writerow([timestamp, user_query, agent_type, response, ratings[agent_type]])
+
+    print(f"\nResults saved to {filename}.")
+
+def comparative_evaluation(client):
+    """Run the comparative evaluation system."""
+    print("=== Comparative Evaluation System ===")
+    user_query = input("Enter your query: ").strip()
+
+    # Run all three agents
+    responses = run_all_agents(client, user_query)
+
+    # Display responses side by side
+    display_responses(responses)
+
+    # Collect user ratings
+    ratings = collect_ratings()
+
+    # Save results to CSV
+    save_to_csv(user_query, responses, ratings)
+
+# Main function to run the comparative evaluation
+if __name__ == "__main__":
+    choice = input("\n1: Single Agent\n2: Comparative Evaluation\nChoose an option: ").strip()
+    if choice == "1":
+        agent_choice = input("\n1: Basic\n2: Chain of Thought\n3: ReAct\nChoose an agent type: ").strip()
+        if agent_choice == "1":
+            system_message = "You are a helpful weather assistant."
+            tools = weather_tools
+        elif agent_choice == "2":
+            system_message = cot_system_message
+            tools = cot_tools
+        elif agent_choice == "3":
+            system_message = react_system_message
+            tools = react_tools
+        else:
+            print("Invalid choice. Defaulting to Basic agent.")
+            system_message = "You are a helpful weather assistant."
+            tools = weather_tools
+
+        run_conversation(client, system_message)
+    elif choice == "2":
+        comparative_evaluation(client)
+    else:
+        print("Invalid choice. Exiting.")

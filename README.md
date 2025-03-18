@@ -54,6 +54,20 @@ Run the conversational agent:
 - Users can rate each response on a scale of 1-5.
 - Results are saved to a CSV file (agent_evaluation.csv) for analysis
 
+## Running the Code
+When you run the code, you will be prompted to choose between two options:
+
+#### Single Agent:
+- Run the conversational agent with a single reasoning strategy (Basic, Chain of Thought, or ReAct).
+- You will be asked to choose the agent type (Basic, Chain of Thought, or ReAct).
+- The agent will process your queries using the selected reasoning strategy.
+
+#### Comparative Evaluation:
+- Run the conversational agent with all three reasoning strategies (Basic, Chain of Thought, and ReAct).
+- The system will process your query using all three agents and display their responses side by side.
+- You will be asked to rate each response on a scale of 1-5.
+- The results will be saved to a CSV file (agent_evaluation.csv) for later analysis.
+
 ## Example Conversations
 #### 1. Basic Agent
 User: What's the weather in Paris today?
@@ -105,16 +119,24 @@ Strengths: Combines reasoning and acting, making it highly effective for complex
 <br>Limitations: Requires more computational resources and may be overkill for simple queries.
 
 ## Challenges and Solutions
-1 Handling Complex Queries
+1. Handling Complex Queries
 <br>Challenge: The Basic Agent could not handle queries requiring multiple steps (e.g., temperature differences between cities).
 <br>Solution: Implemented the Chain of Thought and ReAct agents to break down complex queries into smaller steps.
-<br>
-<br>2. Tool Integration
+
+2. Tool Integration
 <br>Challenge: Ensuring the agent correctly invokes tools like get_current_weather and calculator.
 <br>Solution: Added error handling and validation to ensure tools are used correctly.
-<br>
-<br>3. Comparative Evaluation
+
+3. Comparative Evaluation
 <br>Challenge: Displaying responses from all three agents side by side and collecting user ratings.
 <br>Solution: Implemented a comparative evaluation system that runs all agents, displays their responses, and saves the results to a CSV file.
+
+## Note on Comparative Evaluation
+- When running the Comparative Evaluation option, it is normal for the process to take some time. This is because:
+- Multiple API Calls: The system makes separate API calls for each agent (Basic, Chain of Thought, and ReAct).
+- Step-by-Step Reasoning: The Chain of Thought and ReAct agents perform additional reasoning steps, which can increase processing time.
+- Tool Invocations: Each agent may invoke tools like get_current_weather or calculator, which require additional time to execute.
+
+Please be patient while the system processes your query and generates responses from all three agents.
 <br>
 <br>This project demonstrates the power of different reasoning strategies in conversational agents. By comparing the Basic, Chain of Thought, and ReAct agents, we can see how each approach affects the quality and clarity of responses. The comparative evaluation system provides valuable insights for further improvements.

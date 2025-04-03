@@ -1,4 +1,3 @@
-# CSAI 422: Laboratory Assignment 4
 # Building Conversational Agents with Tool Use and Reasoning Techniques
 
 This repository contains a conversational agent that can answer weather-related questions and perform calculations using three different reasoning strategies: Basic, Chain of Thought (CoT), and ReAct. 
